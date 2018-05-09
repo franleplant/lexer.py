@@ -1,15 +1,17 @@
+from typing import cast, List, Tuple
 import re
 
 m = [
-    ('{', re.compile('{'))
+    ('{', re.compile('{').match),
+    ('Number', re.compile('\d+').match),
 ]
+
 
 class LexExcepction(Exception):
     pass
 
 
-
-def lex(src):
+def lex(src: str) -> List[Tuple[str, str, int, int]]:
     tokens = []
     wordBegin = None
     for i in range(0, len(src) + 1):
@@ -31,10 +33,13 @@ def lex(src):
             if c.isspace():
                 wordEnd = i
                 word = src[wordBegin:wordEnd]
-                results = [TokenKind for (TokenKind, mi) in m if mi.match(word)]
+                results = [
+                    TokenKind for (TokenKind, matcher) in m if matcher(word)
+                ]
                 if len(results) == 0:
-                    raise LexExcepction('Token not recognized in ' + str(wordBegin))
-                token = (results[0], word, wordBegin, wordEnd)
+                    raise LexExcepction(
+                        'Unrecognized Token in ' + str(wordBegin))
+                token = (results[0], word, cast(int, wordBegin), wordEnd)
                 tokens.append(token)
 
                 wordBegin = None
@@ -42,8 +47,7 @@ def lex(src):
             else:
                 continue
 
-
     return tokens
 
 
-print(lex('  {   { asd'))
+print(lex('  {   { 123'))
