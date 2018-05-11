@@ -1,17 +1,45 @@
 from typing import cast, List, Tuple
 import re
 
+
+def if_automata(input):
+    print('if automata')
+    print(input)
+    state = 0
+    for c in input:
+        if state == 0 and c == "i":
+            state = 1
+            continue
+        if state == 1 and c == 'f':
+            state = 2
+            continue
+        break
+
+    print('state')
+    print(state)
+    # acepted
+    if state == 2:
+        return True
+
+    # rejected
+    return False
+
+
+
 m = [
     ('{', re.compile('{$').match),
     ('Number', re.compile('\d+$').match),
+    ('if', if_automata),
 ]
 
 
 class LexExcepction(Exception):
     pass
 
+Token = Tuple[str, str, int, int]
 
-def lex(src: str) -> List[Tuple[str, str, int, int]]:
+# TODO create tests for this
+def lex(src: str) -> List[Token]:
     line = 1
     lineBase = 0
     tokens = []
@@ -50,16 +78,21 @@ def lex(src: str) -> List[Tuple[str, str, int, int]]:
     return tokens
 
 
-src = '  {   { 123\n 123\n   {'
 
-print("{:^10} {:^10} {:^10} {:^10}".format(*("TokenKind", "lexeme", "line",
-                                             "column")))
-print("------------------------------------------------------------")
-for token in lex(src):
-    print("{:^10} {:^10} {:^10} {:^10}".format(*token))
+def printTokens(tokens: List[Token]):
+    print("{:^10} {:^10} {:^10} {:^10}".format(*("TokenKind", "lexeme", "line",
+                                                "column")))
+    print("------------------------------------------------------------")
+    for token in tokens:
+        print("{:^10} {:^10} {:^10} {:^10}".format(*token))
 
-print("++++++++++++++++++++++")
-print(src)
-print("++++++++++++++++++++++")
-for (i, c) in enumerate(src):
-    print((i, c))
+    print("++++++++++++++++++++++")
+    print(src)
+    print("++++++++++++++++++++++")
+    for (i, c) in enumerate(src):
+        print((i, c))
+
+src = '  {   { 123\n 123\n   { if'
+
+tokens = lex(src)
+printTokens(tokens)
