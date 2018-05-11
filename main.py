@@ -11,11 +11,12 @@ class LexExcepction(Exception):
     pass
 
 
-def lex(src: str) -> List[Tuple[str, str, int, int, int]]:
+def lex(src: str) -> List[Tuple[str, str, int, int]]:
     line = 1
     lineBase = 0
     tokens = []
-    wordBegin = None
+    wordBegin = 0
+    insideWord = False
     for i in range(0, len(src) + 1):
         c = None
         if i < len(src):
@@ -24,48 +25,41 @@ def lex(src: str) -> List[Tuple[str, str, int, int, int]]:
             # Fake space at the end of the string
             c = ' '
 
-        if wordBegin == None:
-            # Trailing whitespace
-            if c.isspace():
-                if c == '\n':
-                    line += 1
-                    lineBase = i
-                continue
-            # Word Begin
-            else:
-                wordBegin = i
-        else:
-            # Word End
-            if c.isspace():
-                wordEnd = i
-                word = src[wordBegin:wordEnd]
-                results = [
-                    TokenKind for (TokenKind, matcher) in m if matcher(word)
-                ]
-                if len(results) == 0:
-                    raise LexExcepction(
-                        'Unrecognized Token "' + word + '" in ' + str(line) + str(wordBegin))
-                # TODO this needs more work
-                column = wordBegin - lineBase + 1
-                token = (results[0], word, line, column, wordEnd)
-                tokens.append(token)
+        if not insideWord and not c.isspace():
+            wordBegin = i
+            insideWord = True
+        if insideWord and c.isspace():
+            wordEnd = i
+            word = src[wordBegin:wordEnd]
+            results = [
+                TokenKind for (TokenKind, matcher) in m if matcher(word)
+            ]
+            if len(results) == 0:
+                raise LexExcepction('Unrecognized Token "' + word + '" in ' +
+                                    str(line) + str(wordBegin))
+            column = wordBegin - lineBase + 1
+            token = (results[0], word, line, column)
+            tokens.append(token)
 
-                wordBegin = None
-                
-                # TODO avoid duplication
-                if c == '\n':
-                    line += 1
-                    lineBase = i
-            # Inside a word
-            else:
-                continue
+            insideWord = False
+
+        if c == '\n':
+            line += 1
+            lineBase = i + 1
 
     return tokens
 
 
-src = '  {   { 123\n 123'
-print(src)
-print(lex(src))
+src = '  {   { 123\n 123\n   {'
 
-for (i,c) in enumerate(src):
-    print((i,c))
+print("{:^10} {:^10} {:^10} {:^10}".format(*("TokenKind", "lexeme", "line",
+                                             "column")))
+print("------------------------------------------------------------")
+for token in lex(src):
+    print("{:^10} {:^10} {:^10} {:^10}".format(*token))
+
+print("++++++++++++++++++++++")
+print(src)
+print("++++++++++++++++++++++")
+for (i, c) in enumerate(src):
+    print((i, c))
