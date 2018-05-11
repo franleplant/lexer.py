@@ -1,8 +1,8 @@
-from typing import cast, List, Tuple
+from typing import cast, List, Tuple, Any
 import re
 
 
-def if_automata(input):
+def if_automata(input: str) -> bool:
     print('if automata')
     print(input)
     state = 0
@@ -25,8 +25,7 @@ def if_automata(input):
     return False
 
 
-
-m = [
+m: List[Any] = [
     ('{', re.compile('{$').match),
     ('Number', re.compile('\d+$').match),
     ('if', if_automata),
@@ -36,7 +35,9 @@ m = [
 class LexExcepction(Exception):
     pass
 
+
 Token = Tuple[str, str, int, int]
+
 
 # TODO create tests for this
 def lex(src: str) -> List[Token]:
@@ -78,10 +79,9 @@ def lex(src: str) -> List[Token]:
     return tokens
 
 
-
 def printTokens(tokens: List[Token]):
     print("{:^10} {:^10} {:^10} {:^10}".format(*("TokenKind", "lexeme", "line",
-                                                "column")))
+                                                 "column")))
     print("------------------------------------------------------------")
     for token in tokens:
         print("{:^10} {:^10} {:^10} {:^10}".format(*token))
@@ -91,6 +91,7 @@ def printTokens(tokens: List[Token]):
     print("++++++++++++++++++++++")
     for (i, c) in enumerate(src):
         print((i, c))
+
 
 src = '  {   { 123\n 123\n   { if'
 
