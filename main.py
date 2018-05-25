@@ -19,21 +19,20 @@ def if_automata(input: str) -> bool:
     return state == 2
 
 
-m: List[Any] = [('{', re.compile('^{$').match), ('If', if_automata),
-                ('Number', re.compile('^\d+$').match),
-                ('Id', re.compile('^[a-zA-Z]+$').match)]
+m: List[Any] = [
+    ('{', re.compile('^{$').match),
+    ('If', if_automata),
+    ('Number', re.compile('^\d+$').match),
+    ('Id', re.compile('^[a-zA-Z]+$').match)
+]
 
 
 class LexExcepction(Exception):
     pass
 
-
 TokenKind = str
-
-
 class Token:
-    def __init__(self, token_kind: TokenKind, lexeme: str, line: int,
-                 col: int) -> None:
+    def __init__(self, token_kind: TokenKind, lexeme: str, line: int, col: int) -> None:
         self.kind = token_kind
         self.lexeme = lexeme
         self.line = line
@@ -46,9 +45,10 @@ class Token:
 
         return NotImplemented
 
+
     def __repr__(self):
-        return "TOKEN: {} {} {} {}".format(self.kind, self.lexeme, self.line,
-                                           self.col)
+        return "TOKEN: {} {} {} {}".format(self.kind, self.lexeme, self.line, self.col)
+
 
 
 class PotentialToken:
@@ -60,8 +60,11 @@ class PotentialToken:
     def col(self) -> int:
         return self.start - self.lineBase + 1
 
+
     def to_token(self, token_kind: TokenKind, word: str) -> Token:
         return Token(token_kind, word, self.line, self.col())
+
+
 
 
 def get_char(i: int, src: str) -> str:
@@ -71,16 +74,15 @@ def get_char(i: int, src: str) -> str:
         # Fake space at the end of the string
         return ' '
 
-
 def get_token_candidates(word: str) -> List[TokenKind]:
-    print(('get_token_candidates', word))
-    return [TokenKind for (TokenKind, matcher) in m if matcher(word)]
+    return [
+        TokenKind for (TokenKind, matcher) in m if matcher(word)
+    ]
 
 
 MAX_ITERATIONS = 200
-
-
 # TODO make diagram
+# TODO make number convertions?
 def lex(src: str) -> Tuple[bool, List[Token]]:
     state = 0
     index = 0
@@ -144,7 +146,8 @@ def lex(src: str) -> Tuple[bool, List[Token]]:
         else:
             state = -1
 
-        iter_count += 1
+        iter_count +=1
+
 
     error = state == 1
     return (error, tokens)
@@ -155,14 +158,14 @@ def printTokens(tokens: List[Token]):
                                                  "column")))
     print("------------------------------------------------------------")
     for token in tokens:
-        print("{:^10} {:^10} {:^10} {:^10}".format(token.kind, token.lexeme,
-                                                   token.line, token.col))
+        print("{:^10} {:^10} {:^10} {:^10}".format(token.kind, token.lexeme, token.line, token.col))
 
     print("++++++++++++++++++++++")
     print(src)
     print("++++++++++++++++++++++")
     for (i, c) in enumerate(src):
         print((i, c))
+
 
 
 if __name__ == '__main__':
