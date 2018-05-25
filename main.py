@@ -19,25 +19,36 @@ def if_automata(input: str) -> bool:
     return state == 2
 
 
-m: List[Any] = [
-    ('{', re.compile('^{$').match),
-    ('If', if_automata),
-    ('Number', re.compile('^\d+$').match),
-    ('Id', re.compile('^[a-zA-Z]+$').match)
-]
+m: List[Any] = [('{', re.compile('^{$').match), ('If', if_automata),
+                ('Number', re.compile('^\d+$').match),
+                ('Id', re.compile('^[a-zA-Z]+$').match)]
 
 
 class LexExcepction(Exception):
     pass
 
+
 TokenKind = str
+
+
 class Token:
-    def __init__(self, token_kind: TokenKind, lexeme: str, line: int, col: int) -> None:
+    def __init__(self, token_kind: TokenKind, lexeme: str, line: int,
+                 col: int) -> None:
         self.kind = token_kind
         self.lexeme = lexeme
         self.line = line
         self.col = col
 
+    def __eq__(self, other):
+        """Overrides the default implementation"""
+        if type(other) is tuple:
+            return self.kind == other[0] and self.lexeme == other[1] and self.line == other[2] and self.col == other[3]
+
+        return NotImplemented
+
+    def __repr__(self):
+        return "TOKEN: {} {} {} {}".format(self.kind, self.lexeme, self.line,
+                                           self.col)
 
 
 class PotentialToken:
@@ -47,13 +58,10 @@ class PotentialToken:
         self.lineBase = lineBase
 
     def col(self) -> int:
-        return self.start - self.lineBase
-
+        return self.start - self.lineBase + 1
 
     def to_token(self, token_kind: TokenKind, word: str) -> Token:
         return Token(token_kind, word, self.line, self.col())
-
-
 
 
 def get_char(i: int, src: str) -> str:
@@ -63,16 +71,17 @@ def get_char(i: int, src: str) -> str:
         # Fake space at the end of the string
         return ' '
 
+
 def get_token_candidates(word: str) -> List[TokenKind]:
     print(('get_token_candidates', word))
-    return [
-        TokenKind for (TokenKind, matcher) in m if matcher(word)
-    ]
+    return [TokenKind for (TokenKind, matcher) in m if matcher(word)]
 
 
 MAX_ITERATIONS = 200
+
+
 # TODO make diagram
-def lex(src: str) -> List[Token]:
+def lex(src: str) -> Tuple[bool, List[Token]]:
     state = 0
     index = 0
     line = 1
@@ -83,11 +92,9 @@ def lex(src: str) -> List[Token]:
     iter_count = 0
     while index <= len(src) + 1:
         if iter_count > MAX_ITERATIONS:
-            print(('ERROR MAX_ITERATIONS'))
-            break
+            raise Exception('ERROR MAX_ITERATIONS')
+
         c = get_char(index, src)
-        # print(('index', index, 'c', c, 'state', state, 'potential_token', potential_token))
-        # print(('tokens', tokens))
 
         # Initial White space skip
         if state == 0:
@@ -102,11 +109,10 @@ def lex(src: str) -> List[Token]:
 
         # While being at least one potential accepted token consume characters
         elif state == 1:
+            if potential_token is None:
+                raise Exception('1: something really bad happened')
             word = src[potential_token.start:index + 1]
             token_candidates = get_token_candidates(word)
-            # print(('1 potential_token', potential_token))
-            # print(('1 word', word))
-            # print(('1: token_candidates', token_candidates))
             is_accepted = len(token_candidates) > 0
             if is_accepted and not c.isspace():
                 index += 1
@@ -118,9 +124,9 @@ def lex(src: str) -> List[Token]:
 
         # Max length token detected, create one and restart the process
         elif state == 2:
+            if potential_token is None:
+                raise Exception('2: something really bad happened')
             word = src[potential_token.start:index + 1]
-            # print(('potential_token', potential_token))
-            # print(('word', word))
             token_candidates = get_token_candidates(word)
             if len(token_candidates) == 0:
                 state = -1
@@ -138,8 +144,7 @@ def lex(src: str) -> List[Token]:
         else:
             state = -1
 
-        iter_count +=1
-
+        iter_count += 1
 
     error = state == 1
     return (error, tokens)
@@ -150,14 +155,14 @@ def printTokens(tokens: List[Token]):
                                                  "column")))
     print("------------------------------------------------------------")
     for token in tokens:
-        print("{:^10} {:^10} {:^10} {:^10}".format(token.kind, token.lexeme, token.line, token.col))
+        print("{:^10} {:^10} {:^10} {:^10}".format(token.kind, token.lexeme,
+                                                   token.line, token.col))
 
     print("++++++++++++++++++++++")
     print(src)
     print("++++++++++++++++++++++")
     for (i, c) in enumerate(src):
         print((i, c))
-
 
 
 if __name__ == '__main__':
