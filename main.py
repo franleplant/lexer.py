@@ -1,36 +1,95 @@
 from typing import cast, List, Tuple, Any
 import re
 
+TokenKind = str
 
-def if_automata(input: str) -> bool:
+# TODO enums?
+ACCEPTED = "ACCEPTED"
+NOT_ACCEPTED = "NOT_ACCEPTED"
+TRAPPED = "TRAPPED"
+
+def a_id(lexeme: str) -> str:
     state = 0
-    for c in input:
-        if state == 0 and c == "i":
+    accepted = [1]
+    for c in lexeme:
+        if state == 0 and c.isalpha():
             state = 1
-            continue
-        elif state == 1 and c == 'f':
-            state = 2
-            continue
+        elif state == 1 and c.isalpha():
+            state = 1
         else:
             state = -1
             break
 
-    # is it acepted?
-    return state == 2
+    if state == -1:
+        return TRAPPED
+
+    if state in accepted:
+        return ACCEPTED
+    else:
+        return NOT_ACCEPTED
+
+def a_num(lexeme: str) -> str:
+    state = 0
+    accepted = [1]
+    for c in lexeme:
+        if state == 0 and c.isdigit():
+            state = 1
+        elif state == 1 and c.isdigit():
+            state = 1
+        else:
+            state = -1
+            break
+
+    if state == -1:
+        return TRAPPED
+
+    if state in accepted:
+        return ACCEPTED
+    else:
+        return NOT_ACCEPTED
+
+def a_if(lexeme: str) -> str:
+    state = 0
+    accepted = [2]
+    for c in lexeme:
+        if state == 0 and c == "i":
+            state = 1
+        elif state == 1 and c == 'f':
+            state = 2
+        else:
+            state = -1
+            break
+
+    if state == -1:
+        return TRAPPED
+
+    if state in accepted:
+        return ACCEPTED
+    else:
+        return NOT_ACCEPTED
+
+def a_curly_open(lexeme: str) -> str:
+    if lexeme == "{":
+        return ACCEPTED
+    else:
+        return TRAPPED
+
+def a_curly_close(lexeme: str) -> str:
+    if lexeme == "}":
+        return ACCEPTED
+    else:
+        return TRAPPED
 
 
-m: List[Any] = [
-    ('{', re.compile('^{$').match),
-    ('If', if_automata),
-    ('Number', re.compile('^\d+$').match),
-    ('Id', re.compile('^[a-zA-Z]+$').match)
+TOKEN_CONF = [
+    ('IF', a_if),
+    ('CURLY_OPEN', a_curly_open),
+    ('CURLY_CLOSE', a_curly_close),
+    ("NUM", a_num),
+    ("ID", a_id),
 ]
 
 
-class LexExcepction(Exception):
-    pass
-
-TokenKind = str
 class Token:
     def __init__(self, token_kind: TokenKind, lexeme: str, line: int, col: int) -> None:
         self.kind = token_kind
@@ -51,106 +110,67 @@ class Token:
 
 
 
-class PotentialToken:
-    def __init__(self, startIndex: int, line: int, lineBase: int) -> None:
-        self.start = startIndex
-        self.line = line
-        self.lineBase = lineBase
+def lex(src: str) -> List[Token]:
+    # TODO do we need this?
+    src = src + " "
 
-    def col(self) -> int:
-        return self.start - self.lineBase + 1
-
-
-    def to_token(self, token_kind: TokenKind, word: str) -> Token:
-        return Token(token_kind, word, self.line, self.col())
-
-
-
-
-def get_char(i: int, src: str) -> str:
-    if i < len(src):
-        return src[i]
-    else:
-        # Fake space at the end of the string
-        return ' '
-
-def get_token_candidates(word: str) -> List[TokenKind]:
-    return [
-        TokenKind for (TokenKind, matcher) in m if matcher(word)
-    ]
-
-
-MAX_ITERATIONS = 200
-# TODO make diagram
-# TODO make number convertions?
-def lex(src: str) -> Tuple[bool, List[Token]]:
-    state = 0
+    tokens: List[Token] = []
     index = 0
     line = 1
     lineBase = 0
-    potential_token = None
-    tokens = []
 
-    iter_count = 0
-    while index <= len(src) + 1:
-        if iter_count > MAX_ITERATIONS:
-            raise Exception('ERROR MAX_ITERATIONS')
+    while index < len(src):
+        c = src[index]
+        if c == '\n':
+            line += 1
+            lineBase = index
 
-        c = get_char(index, src)
-
-        # Initial White space skip
-        if state == 0:
-            if c.isspace():
-                index += 1
-                if c == '\n':
-                    line += 1
-                    lineBase = index
-            else:
-                state = 1
-                potential_token = PotentialToken(index, line, lineBase)
-
-        # While being at least one potential accepted token consume characters
-        elif state == 1:
-            if potential_token is None:
-                raise Exception('1: something really bad happened')
-            word = src[potential_token.start:index + 1]
-            token_candidates = get_token_candidates(word)
-            is_accepted = len(token_candidates) > 0
-            if is_accepted and not c.isspace():
-                index += 1
-            else:
-                # back one character
-                index -= 1
-                # and move to the token generation state
-                state = 2
-
-        # Max length token detected, create one and restart the process
-        elif state == 2:
-            if potential_token is None:
-                raise Exception('2: something really bad happened')
-            word = src[potential_token.start:index + 1]
-            token_candidates = get_token_candidates(word)
-            if len(token_candidates) == 0:
-                state = -1
-                # TODO better error message
-                print('Unrecognized token')
-                break
-
-            token_kind = token_candidates[0]
-            token = potential_token.to_token(token_kind, word)
-            # print(('new token', token))
-            tokens.append(token)
-
+        if c.isspace():
             index += 1
-            state = 0
-        else:
-            state = -1
-
-        iter_count +=1
+            continue
 
 
-    error = state == 1
-    return (error, tokens)
+        start = index
+        candidates: List[TokenKind] = []
+        next_candidates: List[TokenKind] = []
+        lexeme = ""
+        next_lexeme = ""
+        all_trapped = False
+
+        while not all_trapped:
+            all_trapped = True
+            lexeme = next_lexeme
+            next_lexeme = src[start:index + 1]
+            candidates = next_candidates
+            next_candidates = []
+
+            for (token_type, afd) in TOKEN_CONF:
+                res = afd(next_lexeme)
+                if res == ACCEPTED:
+                    next_candidates.append(token_type)
+                    all_trapped = False
+                elif res == NOT_ACCEPTED:
+                    all_trapped = False
+
+            # print((lexeme, candidates))
+            index += 1
+
+
+        # rollback one char
+        index -= 1
+
+        if len(candidates) == 0:
+            print(("tokens", tokens))
+            raise Exception("UNKNOWN TOKEN " + lexeme)
+
+        token_type = candidates[0]
+        token = Token(token_type, lexeme, line, start - lineBase + 1)
+        tokens.append(token)
+
+
+    return tokens
+
+
 
 
 def printTokens(tokens: List[Token]):
@@ -169,7 +189,7 @@ def printTokens(tokens: List[Token]):
 
 
 if __name__ == '__main__':
-    src = '  {   { 123\n 123\n   { if'
+    src = '  {   { 123\n 123\n   {if'
 
-    (error, tokens) = lex(src)
+    tokens = lex(src)
     printTokens(tokens)
