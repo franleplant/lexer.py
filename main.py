@@ -110,6 +110,7 @@ class Token:
 
 
 
+# TODO use pytest instead of unittest
 def lex(src: str) -> List[Token]:
     # TODO do we need this?
     src = src + " "
